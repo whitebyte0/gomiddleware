@@ -15,6 +15,7 @@ const (
 	CtxRole         = "userRole"
 	CtxSessionToken = "sessionToken"
 	CtxRawToken     = "rawToken"
+	CtxMetadata     = "authMetadata"
 )
 
 // TokenValidator validates a JWT token and returns claims.
@@ -134,4 +135,55 @@ func setAuthContext(c *gin.Context, claims *jwt.Claims, rawToken string) {
 	c.Set(CtxRole, claims.Role)
 	c.Set(CtxSessionToken, claims.SessionToken)
 	c.Set(CtxRawToken, rawToken)
+	if claims.Metadata != nil {
+		c.Set(CtxMetadata, claims.Metadata)
+	}
+}
+
+// GetMetadata returns the full metadata map from context.
+func GetMetadata(c *gin.Context) (map[string]interface{}, bool) {
+	v, exists := c.Get(CtxMetadata)
+	if !exists {
+		return nil, false
+	}
+	return v.(map[string]interface{}), true
+}
+
+// GetMetadataValue returns a single metadata value by key.
+func GetMetadataValue(c *gin.Context, key string) (interface{}, bool) {
+	meta, exists := GetMetadata(c)
+	if !exists {
+		return nil, false
+	}
+	val, ok := meta[key]
+	return val, ok
+}
+
+// GetMetadataInt64 returns a metadata value as int64.
+// Handles both float64 (from JSON) and int64 types.
+func GetMetadataInt64(c *gin.Context, key string) (int64, bool) {
+	val, ok := GetMetadataValue(c, key)
+	if !ok {
+		return 0, false
+	}
+	switch v := val.(type) {
+	case float64:
+		return int64(v), true
+	case int64:
+		return v, true
+	case int:
+		return int64(v), true
+	default:
+		return 0, false
+	}
+}
+
+// GetMetadataBool returns a metadata value as bool.
+func GetMetadataBool(c *gin.Context, key string) (bool, bool) {
+	val, ok := GetMetadataValue(c, key)
+	if !ok {
+		return false, false
+	}
+	b, ok := val.(bool)
+	return b, ok
 }

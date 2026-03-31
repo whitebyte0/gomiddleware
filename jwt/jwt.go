@@ -24,14 +24,16 @@ type RevokedTokenStore interface {
 	Revoke(tokenHash string, userID int64, expiresAt time.Time, reason string) error
 }
 
-// Claims represents JWT claims. Embed this in your own claims struct
-// to add custom fields (org_id, session_token, etc.).
+// Claims represents JWT claims with optional app-specific metadata.
+// Use the Metadata field to carry arbitrary key-value pairs (e.g. org_id,
+// is_system_owner) without modifying the library.
 type Claims struct {
-	UserID       int64  `json:"user_id"`
-	Email        string `json:"email"`
-	Role         string `json:"role"`
-	SessionToken string `json:"session_token,omitempty"`
-	TokenVersion int64  `json:"token_version,omitempty"`
+	UserID       int64                  `json:"user_id"`
+	Email        string                 `json:"email"`
+	Role         string                 `json:"role"`
+	SessionToken string                 `json:"session_token,omitempty"`
+	TokenVersion int64                  `json:"token_version,omitempty"`
+	Metadata     map[string]interface{} `json:"metadata,omitempty"`
 	jwt.RegisteredClaims
 }
 
@@ -92,6 +94,7 @@ type GenerateInput struct {
 	Role         string
 	SessionToken string
 	TokenVersion int64
+	Metadata     map[string]interface{} // App-specific key-value pairs
 }
 
 // Generate creates a new signed JWT token.
@@ -103,6 +106,7 @@ func (m *JWTManager) Generate(input GenerateInput) (string, error) {
 		Role:         input.Role,
 		SessionToken: input.SessionToken,
 		TokenVersion: input.TokenVersion,
+		Metadata:     input.Metadata,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ID:        uuid.New().String(),
 			Issuer:    m.issuer,
@@ -196,6 +200,7 @@ func (m *JWTManager) Refresh(oldToken string) (string, error) {
 		Role:         claims.Role,
 		SessionToken: claims.SessionToken,
 		TokenVersion: currentVersion,
+		Metadata:     claims.Metadata,
 	})
 }
 
